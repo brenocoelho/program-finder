@@ -209,3 +209,21 @@ Options:
 
 Chosen: first "basic checks only", then changed to the wide limits after the point that a 6800 score typo would pass every score rule.
 Why: "A typo must never show 'Fits'. Wide limits catch it and cost almost nothing."
+
+## D21. Where the rep codes are seeded (2026-10-12)
+Options:
+- Migration 0002_seed_reps.sql (the optional rate-change migration would move to 0003).
+- A separate db/seeds/reps.sql with its own runner step.
+- **Inside 0001_init.sql** (R01–R08 and M01–M02, `ON CONFLICT DO NOTHING`).
+
+Chosen: inside 0001_init.sql.
+Why: "The reps are fixed reference data that the app needs from the first run, so they belong with the schema. One file is simpler, and ON CONFLICT DO NOTHING makes it safe to run again. If the list changes later, it goes in a new migration."
+
+## D22. Which databases `setup` and `db:reset` migrate (2026-10-12)
+Options:
+- **The dev database `finder` only;** `finder_test` is created empty by the init script.
+- Both `finder` and `finder_test`.
+
+Chosen: dev database only.
+Update: npm test now runs the integration tests, and their setup migrates finder_test before each run (see the tests change after this decision).
+Why: "The test database belongs to the tests. The integration setup migrates finder_test before the tests run, so setup only needs to prepare the database I use in the app. This keeps the two separate, and a test can never depend on the dev data."

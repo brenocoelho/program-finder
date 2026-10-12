@@ -8,7 +8,11 @@ import {
 } from "react-router";
 
 import type { Route } from "./+types/root";
+import { requestMiddleware } from "~/shared/request-context.server";
 import "./app.css";
+
+// Runs first on every server request: request id, logger, Server-Timing.
+export const middleware: Route.MiddlewareFunction[] = [requestMiddleware];
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },

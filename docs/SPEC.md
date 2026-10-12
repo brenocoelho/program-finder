@@ -255,7 +255,7 @@ create index if not exists rec_events_created_idx on recommendation_events (crea
 Writes:
 - **Import:** one transaction under `pg_advisory_xact_lock`. Insert `data_imports` `ON CONFLICT (idempotency_key) DO NOTHING`. If nothing was inserted, it's a no-op ("already live"). Then insert either every `programs` row (accepted) or every `data_issues` row (rejected).
 - **Recommend:** a single insert `ON CONFLICT (idempotency_key) DO NOTHING`.
-- **Reps:** `INSERT … ON CONFLICT (code) DO NOTHING`.
+- **Reps:** R01–R08 and M01–M02 are inserted by `0001_init.sql` with `INSERT … ON CONFLICT (code) DO NOTHING` (D21). There's no add-reps script.
 
 ## 6. Routes and endpoints
 
@@ -316,14 +316,16 @@ Unit tests are pure, run with Vitest, and need no database. Integration tests ru
 
 Each task ends with typecheck and tests green, and is reviewed before the next. Tasks 1–7 are the V1 core, ~140 min. The two [CUT-FIRST] tasks come last and are dropped from the bottom up: the rate-changed flag first (with one CSV the rep never sees it, D19), then pick-and-compare. All in, ~175 min.
 
+**Status (2026-10-12):** task 3 is partly done (the scaffold: Postgres, env, migration + rep seed, migrate script, middleware, `/healthz`, test setup). Pushed back to the finder step (task 5): `route-errors.server.ts`, the ErrorBoundary with the request id, and the FR-19 test. Tasks 1, 2 and 4–9 not started.
+
 | # | Task | Min | Done when |
 |---|---|---|---|
 | 1 | **Money, inputs, program schema** (types and tests first): `shared/money.ts`, `matching/borrower-input.ts` (with the D20 limits), `programs/program.ts`, Vitest config, `npm test` | 20 | FR-1, FR-2 unit tests and money parsing tests pass |
 | 2 | **Match engine** (tests first): `matching/rules.ts`, `match.ts` (credit = tier + score as one problem), `rules-version.ts`, CSV fixture, S1–S8, edges, fast-check properties, benchmark | 20 | FR-3–FR-7, FR-9, NFR-2, NFR-4 green |
-| 3 | **Database and request plumbing**: `docker-compose.yml` (Postgres 16), `0001_init.sql`, `scripts/migrate.ts`, `env.server.ts`, `db.server.ts`, `logger.server.ts`, root middleware (request id, Server-Timing), `route-errors.server.ts`, root ErrorBoundary | 20 | migrations run twice cleanly; FR-19 test |
+| 3 | **Database and request plumbing**: `docker-compose.yml` (Postgres 16, port 5433), `0001_init.sql` (schema + rep codes), `scripts/migrate.ts`, `env.server.ts`, `db.server.ts`, `logger.server.ts`, root middleware (request id, Server-Timing), `/healthz`, `route-errors.server.ts`, root ErrorBoundary. **Scaffold done except `route-errors.server.ts`, the ErrorBoundary changes and the FR-19 test** | 20 | migrations run twice cleanly; FR-19 test |
 | 4 | **CSV import**: `programs/parse-programs-csv.ts` (pure, rows → programs or issues), `import.server.ts`, `scripts/import-programs.ts`, `npm run db:import` | 20 | FR-13 green; the sample CSV imports 49 rows |
 | 5 | **Finder screen**: `routes/home.tsx` loader, `programs.server.ts` (live programs), `components/search-form.tsx` (live, debounced), `result-group.tsx`, `result-row.tsx` (aligned table columns, stale warning, lender will check) | 20 | FR-1–FR-9, FR-11, FR-12 visible in the browser with S1–S5 |
-| 6 | **Recommendations (ask 7)**: `reps.server.ts`, `scripts/add-reps.ts`, `/rep`, rep cookie, `/recommend` action, Recommended button via fetcher, `/insights` | 20 | FR-15–FR-17 integration tests green |
+| 6 | **Recommendations (ask 7)**: `reps.server.ts`, `/rep`, rep cookie, `/recommend` action, Recommended button via fetcher, `/insights` | 20 | FR-15–FR-17 integration tests green |
 | 7 | **Data health + e2e**: `/data-health` (imports, issues, stale count), Playwright main path, axe on 4 pages, README setup steps | 20 | FR-14, NFR-7 green; the README works from a clean clone |
 | 8 | **[CUT-FIRST] Pick and compare**: compare checkboxes, `?compare=`, `components/compare-panel.tsx` | 20 | FR-18 green |
 | 9 | **[CUT-FIRST] Rate-changed flag** (dropped first): `0002_rate_change.sql`, `programs/program-changes.ts` (pure diff against the previous accepted import), the badge on the row, "What changed" on `/data-health` | 15 | FR-10 green with a second test CSV |
@@ -332,4 +334,4 @@ If time is still short with both cut, drop in this order: the per-rep table on `
 
 Planned known issues (go in `docs/KNOWN_ISSUES.md` when built): the rate-changed flag, if cut (the date and the 31-day warning still show). No login, so anyone can pick any rep code or open `/insights`. No undo for a recommendation. Stale dates use the server's local date. Turnaround days are shown as in the CSV (calendar or business days isn't stated).
 
-Planned scripts (each goes in CLAUDE.md when added): `npm test`, `npm run test:integration`, `npm run test:e2e`, `npm run db:migrate`, `npm run db:import -- <file>`, `npm run db:reps -- <codes>`.
+Planned scripts (each goes in CLAUDE.md when added): `npm run db:import -- <file>`. Already added: `npm run db:up`, `db:migrate [-- <url>]`, `setup`, `db:reset`, `test` (unit + integration), `test:unit`, `test:integration`, `test:e2e`.

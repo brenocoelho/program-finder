@@ -25,18 +25,26 @@ When you use a React Router v8 API I might not know, add one line on what it doe
 React Router v8 (framework mode), TypeScript strict, Vite, Tailwind, Zod, postgres.js, Postgres 16 in Docker Compose, Vitest + fast-check, Playwright.
 - npm run dev: http://localhost:5173. I run it in my own terminal, don't start another one
 - npm run typecheck
+- npm run setup: starts Postgres (docker compose, port 5433) and runs the migrations. Run once after `npm install`.
+- npm run db:up: starts the Postgres container and waits until it is healthy.
+- npm run db:migrate [-- <database-url>]: applies new files from db/migrations in order and records them; safe to run twice. Defaults to the finder database.
+- npm run db:reset: deletes the database volume, starts Postgres again and migrates. Destroys local data.
+- npm test: all Vitest tests, unit and integration (needs `npm run db:up`; integration tests run on the finder_test database, which is migrated first). CI runs this.
+- npm run test:unit / npm run test:integration: one of the two Vitest projects.
+- npm run test:e2e: Playwright tests in e2e/.
+- GET /healthz: `{ status, db }`, 200 or 503. Every response carries X-Request-Id and Server-Timing.
 When you add a script (tests, database, import), list it here with one line on what it does.
 Before using a React Router API, check the react-router skill and the v8 docs it points to in node_modules/react-router/docs. No react-router-dom, no v6-era APIs.
 
 ## Where things go
 Business areas plus one components folder (D14). Planned; folders appear as the build tasks in docs/SPEC.md add them.
-- app/routes/: thin route modules (home.tsx, rep.tsx, recommend.ts, data-health.tsx, insights.tsx). Validate, call business code, render.
+- app/routes/: thin route modules (home.tsx, healthz.ts, rep.tsx, recommend.ts, data-health.tsx, insights.tsx). Validate, call business code, render.
 - app/components/: all React components (search-form.tsx, result-row.tsx, …). Imported only by routes and other components.
 - app/matching/: pure match engine: borrower input schema, rules, status, ordering, RULES_VERSION. No I/O.
 - app/programs/: program schema, CSV parsing and change detection (pure), plus programs.server.ts, import.server.ts and data-health.server.ts (its SQL).
 - app/insights/: reps, the rep cookie, recommendation events and /insights queries (its SQL in .server.ts files).
 - app/shared/: money and date helpers, env.server.ts, db.server.ts, logger.server.ts, the request context and route-errors.server.ts.
-- db/migrations/: numbered plain SQL. scripts/: CLI entry points (migrate, import, add reps). e2e/: Playwright.
+- db/migrations/: numbered plain SQL (0001 also seeds the rep codes). scripts/: CLI entry points (migrate, import). docker/initdb/: runs once on an empty database volume (creates finder_test). e2e/: Playwright.
 
 ## Code rules
 - Organize code by business area, not by technical layer. Route files stay thin: validate input, call the business code, render. No business rules or SQL in routes or components.
@@ -90,12 +98,13 @@ Business areas plus one components folder (D14). Planned; folders appear as the 
 - One build-order task from the spec at a time. If a change is going to be more than ~50 lines, tell me the plan first.
 - Don't say it's done until typecheck and tests are green.
 - I review all the code before I commit, so keep changes small and focused. When you finish a task, tell me which files changed and what deserves a careful look: anything risky, surprising, or that you're not sure about.
-- Already installed: postgres, zod, csv-parse, pino, pino-pretty, vitest, fast-check, tsx, @playwright/test, @axe-core/playwright.
+- Already installed: postgres, zod, csv-parse, pino, vitest, fast-check, tsx, @playwright/test, @axe-core/playwright.
 
 ## Project docs
 - data/programs.csv: the source data. Treat it as correct; business rules come from its columns.
 - docs/DECISIONS.md: product and design decisions, with my reasons.
 - docs/UNDERSTANDING.md: the problem from the rep's side, what each CSV column means and how we use it, open questions, and 5 borrower test scenarios.
+- docs/KNOWN_ISSUES.md: corners cut on purpose, one line each.
 - docs/SPEC.md: the V1 contract: scope, requirements, domain types, rules table, schema, routes, test plan and build order.
 - docs/private/: inputs that are never committed. Read them, but never copy them into committed files.
 When you create a new project doc (the understanding notes, the spec, known issues), add it to this list with one line on what it's for.
