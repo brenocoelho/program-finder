@@ -5,3 +5,9 @@
 # React Router
 /.react-router/
 /build/
+
+# take-home
+docs/private/
+.env
+test-results/
+playwright-report/
