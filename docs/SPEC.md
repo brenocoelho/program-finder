@@ -1,6 +1,6 @@
 # Program Finder: V1 spec
 
-Contracts for V1. Business rules come from `data/programs.csv`, [UNDERSTANDING.md](UNDERSTANDING.md) and [DECISIONS.md](DECISIONS.md) (D1–D25). `RULES_VERSION = 1`. Any rule change bumps it and updates this spec, the tests and DECISIONS.md together.
+Contracts for V1. Business rules come from `data/programs.csv`, [UNDERSTANDING.md](UNDERSTANDING.md) and [DECISIONS.md](DECISIONS.md) (D1–D28). `RULES_VERSION = 2` (D27 bumped it from 1). Any rule change bumps it and updates this spec, the tests and DECISIONS.md together.
 
 ## 1. Scope
 
@@ -139,7 +139,7 @@ type MatchResult = {
 matchPrograms(input: BorrowerInput, programs: Program[], today: IsoDate): MatchResult  // pure
 ```
 
-Constants in `app/matching/rules-version.ts`: `RULES_VERSION = 1`, `STALE_AFTER_DAYS = 31`, `TIER_RANK`.
+Constants in `app/matching/rules-version.ts`: `RULES_VERSION = 2`, `STALE_AFTER_DAYS = 31`, `TIER_RANK`.
 
 ## 4. Business rules
 
@@ -148,7 +148,7 @@ Constants in `app/matching/rules-version.ts`: `RULES_VERSION = 1`, `STALE_AFTER_
 | Amount | `min_loan_amount`, `max_loan_amount` | min ≤ amount ≤ max, both ends inclusive (D3) | amount < min or > max | never (required, D12) | yes (D4) | "$10,000 over this lender's max ($250,000)" / "$5,000 under the min ($10,000)" |
 | Business type | `eligible_business_types` | value is `All`, or equals the type. "Other" passes only `All` (D5) | anything else | never (required) | **never** (D4) | Doesn't fit: "Only for Manufacturing". On an `All` row when the type is Other: "Lender confirms the business type" |
 | Years | `min_years_in_business` | years ≥ min (whole years, D2). A minimum of 0 passes even when the field is empty (D24) | years < min | field empty and min > 0 | yes | "Needs 2+ years in business (borrower: 1)" |
-| Credit tier | `credit_tier_required` | rank(input) ≥ rank(required), Excellent 3 > Good 2 > Fair 1 (D1) | rank lower | field empty | yes, as part of credit (D13) | "Needs Good credit or better" |
+| Credit tier | `credit_tier_required` | rank(input) ≥ rank(required), Excellent 3 > Good 2 > Fair 1 (D1) | rank lower | field empty. When a typed score fails, an empty tier is shown as not given but does not count as unknown for the status: credit already fails whatever the tier is (D27) | yes, as part of credit (D13) | "Needs Good credit or better" |
 | Credit score | `min_credit_score` | only run when a score is typed: score ≥ min (D1) | score < min | not run when empty (it is not unknown, D1) | yes, as part of credit: tier and score together are one problem (D13) | Always on the row: "needs 680+". On fail: "Needs 680+ score (borrower: 650)" |
 | Stale (display) | `last_updated` | today − last_updated ≤ 31 days | > 31 days → warning (D8) | — | — | "Rates may be out of date (as of Jan 16, 2026)" |
 | Rate change (display) **[CUT-FIRST]** | `interest_rate_min/_max` vs previous accepted import | — | — | — | — | "Rate changed: was 11.0%–13.6%" / "New program" (D19) |
@@ -160,8 +160,8 @@ Constants in `app/matching/rules-version.ts`: `RULES_VERSION = 1`, `STALE_AFTER_
 |---|---|
 | Doesn't fit | industry fails |
 | Fits | every rule that runs passes, none unknown |
-| Ask first | no rule fails, at least one is unknown |
-| Close | exactly one problem among amount, years and credit, and none is unknown. Credit = tier and/or score failing (D4, D12, D13) |
+| Ask first | no rule fails, at least one is unknown (an empty tier next to a failed score doesn't count, D27) |
+| Close | exactly one problem among amount, years and credit, and none is unknown. Credit = tier and/or score failing (D4, D12, D13). An empty tier next to a failed score is not counted as unknown (D27) |
 | Doesn't fit | everything else (2+ problems, or a problem plus an unknown) |
 
 A typed score can still move a row from Close to Doesn't fit when the row already misses on amount or years. That's two problems, and the row shows both reasons (D13 follow-up).
@@ -298,7 +298,7 @@ Unit tests are pure, run with Vitest, and need no database. Integration tests ru
 | FR-1 | "no results until amount and business type are given"; "tier and years may be empty" | unit (input schema) |
 | FR-2 | "$250,000, 250,000 and 250000 are the same amount"; "250000.50 is rejected: whole dollars only"; "$1 and $50,000,000 are accepted"; "$0 and $50,000,001 are rejected"; "0 and 99 years are accepted"; "100 years and 0.5 years are rejected"; "scores 300 and 850 are accepted"; "scores 299 and 851 are rejected"; "a 6800 score typo shows an error and no results, never Fits"; "an empty score means no score"; "an invalid field gives no results" | unit + loader |
 | FR-3 | Amount: "exactly the min is accepted", "exactly the max is accepted", "$1 under the min fails", "$1 over the max fails". Industry: "All accepts any type", "Other passes only All rows", "a listed industry fails other industries". Years: "exactly the min passes", "one under fails", "empty is unknown", "min 0 passes even when empty (D24)". Tier: "Excellent passes Good and Fair rows", "Fair fails a Good row", "empty is unknown". Score: "not typed: the rule is not run", "exactly the min passes", "one under fails" | unit |
-| FR-4 | "an industry fail is never Close"; "one problem plus one unknown is Doesn't fit"; "tier and score both failing is one credit problem: Close (D13)"; "a score fail plus an amount fail is two problems: Doesn't fit (D13 follow-up)". Property (fast-check): "when credit is a row's only problem, typing any score keeps it Close". Scenario counts (Fits / Close / Ask first / Doesn't fit): **S1** Construction $250k Good 3y → 27/0/0/22. **S2** Healthcare $150k Good 2y → 17/5/0/27. **S3** Restaurant $260k Fair 2y → 1/16/0/32. **S4** Retail $50k Good 0y → 0/12/0/37. **S5** Healthcare $300k Fair 2y → 0/16/0/33. **S6** S2 without tier → 0/0/17/32. **S7** S2 + score 650 → 6/11/0/32 (S2's 5 Close rows also fail the score: two problems). **S8** Healthcare $150k Fair 2y + score 650 → 1/16/0/32, the same as with no score | unit (reads `data/programs.csv` directly) |
+| FR-4 | "an industry fail is never Close"; "one problem plus one unknown is Doesn't fit"; "tier and score both failing is one credit problem: Close (D13)"; "a score fail plus an amount fail is two problems: Doesn't fit (D13 follow-up)". Property (fast-check): "when credit is a row's only problem, typing any score keeps it Close". Scenario counts (Fits / Close / Ask first / Doesn't fit): **S1** Construction $250k Good 3y → 27/0/0/22. **S2** Healthcare $150k Good 2y → 17/5/0/27. **S3** Restaurant $260k Fair 2y → 1/16/0/32. **S4** Retail $50k Good 0y → 0/12/0/37. **S5** Healthcare $300k Fair 2y → 0/16/0/33. **S6** S2 without tier → 0/0/17/32. **S7** S2 + score 650 → 6/11/0/32 (S2's 5 Close rows also fail the score: two problems). **S8** Healthcare $150k Fair 2y + score 650 → 1/16/0/32, the same as with no score. **S9** S6 + score 650 → 0/11/6/32: the 11 rows that fail the score are Close on credit even with no tier (D27) | unit (reads `data/programs.csv` directly) |
 | FR-5 | "S3: First National Bank CA is Close, $10,000 over its $250,000 max"; "S4: Liberty SBA Express is Close on years only"; "S8: a row failing on tier and score names both" | unit |
 | FR-6 | "S6: every Ask first row asks for credit tier" | unit |
 | FR-7 | "S1 starts with Midwest Business Finance 504 at 5.5%"; "equal rates are ordered by turnaround, then lender, then program"; property: "the same input always gives the same order" (fast-check, shuffled program arrays) | unit + property |
@@ -321,7 +321,7 @@ Unit tests are pure, run with Vitest, and need no database. Integration tests ru
 
 Each task ends with typecheck and tests green, and is reviewed before the next. Tasks 1–7 are the V1 core, ~140 min. The two [CUT-FIRST] tasks come last and are dropped from the bottom up: the rate-changed flag first (with one CSV the rep never sees it, D19), then pick-and-compare. All in, ~175 min.
 
-**Status (2026-10-12):** Tasks 1–5 are done. Task 1: `shared/money.ts` (D20 limits plus k/m shorthand, D26), `matching/borrower-input.ts` (the `parseBorrowerInput` parser with the D20 limits), `programs/program.ts`. Task 2 (match engine): `rules.ts`, `match.ts`, `rules-version.ts`, S1–S8, edges and properties; the NFR-2 benchmark was left out on purpose (see KNOWN_ISSUES). Task 3: the scaffold plus `route-errors.server.ts`, the root `ErrorBoundary` showing the request id, and the FR-19 test, finished alongside task 5 as planned. Task 4 (CSV import) was already done, with `/data-health` built early. Task 5 (finder screen): `routes/home.tsx` loader and component, `programs/business-types.ts`, `components/search-form.tsx` (debounced, live amount echo), `result-group.tsx`, `result-row.tsx`, `rule-chip.tsx`, `data-banner.tsx` — verified in the browser against S1 and S3 with the keyboard only. Task 7 is partly done: `playwright.config.ts` and `e2e/home.spec.ts` (main path + axe on `/`) exist; axe on the other 3 pages and the README setup steps are not done. Task 6 (`/rep`, `/recommend`, `/insights`) is not started. Tasks 8 and 9 are cut per the user's instruction, not just deferred — see `docs/KNOWN_ISSUES.md`.
+**Status (2026-10-12):** Tasks 1–5 are done. Task 1: `shared/money.ts` (D20 limits plus k/m shorthand, D26), `matching/borrower-input.ts` (the `parseBorrowerInput` parser with the D20 limits), `programs/program.ts`. Task 2 (match engine): `rules.ts`, `match.ts`, `rules-version.ts`, S1–S8, edges and properties; the NFR-2 benchmark was left out on purpose (see KNOWN_ISSUES). Task 3: the scaffold plus `route-errors.server.ts`, the root `ErrorBoundary` showing the request id, and the FR-19 test, finished alongside task 5 as planned. Task 4 (CSV import) was already done, with `/data-health` built early. Task 5 (finder screen): `routes/home.tsx` loader and component, `programs/business-types.ts`, `components/search-form.tsx` (debounced, live amount echo), `result-group.tsx`, `result-row.tsx`, `rule-chip.tsx`, `data-banner.tsx` — verified in the browser against S1 and S3 with the keyboard only. Task 7 is partly done: `playwright.config.ts` (chromium only) and `e2e/home.spec.ts` (main path, keyboard-only path, score typo, axe on `/` and `/data-health`) exist, and `.github/workflows/ci.yml` runs everything (not yet run on GitHub); axe on `/rep` and `/insights` waits for task 6, and the README setup steps are not done. After the pre-release review, D27 (`RULES_VERSION = 2`), the banner rate dates, the chip words and the Doesn't fit reasons are in; the remaining review findings are in `docs/KNOWN_ISSUES.md`. Task 6 (`/rep`, `/recommend`, `/insights`) is not started. Tasks 8 and 9 are cut per the user's instruction, not just deferred — see `docs/KNOWN_ISSUES.md`.
 
 | # | Task | Min | Done when |
 |---|---|---|---|

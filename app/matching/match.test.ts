@@ -2,6 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import type { BorrowerInput } from "~/matching/borrower-input";
 import { matchPrograms, type Evaluation, type MatchResult } from "~/matching/match";
+import { freshnessOf } from "~/matching/rules";
 import { RULES_VERSION } from "~/matching/rules-version";
 import type { CreditTier, Program } from "~/programs/program";
 
@@ -272,11 +273,22 @@ describe("each check has plain words for the screen", () => {
       requirement: "Only for Manufacturing",
       borrower: "Borrower: Retail",
     });
-    const all = one(input({ businessType: "Other" }), program({ eligibleBusinessType: "All" }));
+    const all = one(input({ businessType: "Retail" }), program({ eligibleBusinessType: "All" }));
     expect(checkOf(all, "industry")).toEqual({
       rule: "industry",
       outcome: "pass",
       requirement: "Any business type",
+      borrower: "Borrower: Retail",
+    });
+  });
+
+  it("industry: Other on a program for All passes, and says the lender confirms the business type (D5)", () => {
+    const e = one(input({ businessType: "Other" }), program({ eligibleBusinessType: "All" }));
+    expect(e.status).toBe("fits");
+    expect(checkOf(e, "industry")).toEqual({
+      rule: "industry",
+      outcome: "pass",
+      requirement: "Lender confirms the business type",
       borrower: "Borrower: Other",
     });
   });
@@ -462,6 +474,30 @@ describe("status: Fits / Close / Ask first / Doesn't fit (D4, D10, D12, D13)", (
       closeProblem: null,
     },
     {
+      name: "a typed score fails and the tier is empty: credit is already known to fail, so Close (D27)",
+      borrower: { ...LOW_SCORE, creditTier: null },
+      status: "close",
+      closeProblem: "credit",
+    },
+    {
+      name: "a typed score passes and the tier is empty: the tier is still unknown",
+      borrower: { creditScore: 700, creditTier: null },
+      status: "ask_first",
+      closeProblem: null,
+    },
+    {
+      name: "a typed score fails, the tier is empty and the amount fails: two problems (D27)",
+      borrower: { ...LOW_SCORE, ...OVER, creditTier: null },
+      status: "no_fit",
+      closeProblem: null,
+    },
+    {
+      name: "a typed score fails, the tier and years are empty: the years are still unknown (D27)",
+      borrower: { ...LOW_SCORE, creditTier: null, yearsInBusiness: null },
+      status: "no_fit",
+      closeProblem: null,
+    },
+    {
       name: "a typed score fails and years are empty",
       borrower: { ...LOW_SCORE, yearsInBusiness: null },
       status: "no_fit",
@@ -623,6 +659,36 @@ describe("stale rows: more than 31 days old (D8, FR-9)", () => {
     expect(old.stale).toBe(true);
     expect(fresh.stale).toBe(false);
     expect(old.status).toBe("fits");
+  });
+});
+
+describe("how old the live rates are, for the banner (D8)", () => {
+  const dated = (lastUpdated: string, lenderName: string) => program({ lastUpdated, lenderName });
+
+  it("gives the oldest and newest rate dates and how many rows are over 31 days old", () => {
+    const programs = [
+      dated("2026-09-11", "A"), // exactly 31 days: not stale
+      dated("2026-01-01", "B"),
+      dated("2026-09-10", "C"), // 32 days: stale
+      dated("2026-10-12", "D"),
+    ];
+    expect(freshnessOf(programs, TODAY)).toEqual({
+      oldest: "2026-01-01",
+      newest: "2026-10-12",
+      staleCount: 2,
+      total: 4,
+    });
+  });
+
+  it("an import date of today says nothing about the rates: every row can still be stale", () => {
+    expect(freshnessOf([dated("2026-01-16", "A"), dated("2026-02-08", "B")], TODAY)).toMatchObject({
+      staleCount: 2,
+      total: 2,
+    });
+  });
+
+  it("an empty catalog has no rate dates", () => {
+    expect(freshnessOf([], TODAY)).toBeNull();
   });
 });
 
@@ -899,6 +965,25 @@ describe("properties", () => {
         for (const group of [r.fits, r.close, r.askFirst, r.noFit]) expect(sorted(group)).toBe(true);
       }),
     );
+  });
+
+  it("with no tier and known years, typing a score never moves a row out of Ask first into Doesn't fit (D27)", () => {
+    let askFirstSeen = 0;
+    fc.assert(
+      fc.property(
+        inputArb.map((i) => ({ ...i, creditTier: null, creditScore: null, yearsInBusiness: i.yearsInBusiness ?? 2 })),
+        programArb,
+        fc.integer({ min: 300, max: 850 }),
+        (borrower, p, score) => {
+          if (one(borrower, p).status === "ask_first") {
+            askFirstSeen++;
+            expect(one({ ...borrower, creditScore: score }, p).status).not.toBe("no_fit");
+          }
+        },
+      ),
+      { numRuns: 2000 },
+    );
+    expect(askFirstSeen).toBeGreaterThan(10); // the property was not vacuous
   });
 
   it("when credit is a row's only problem, typing any score keeps it Close", () => {

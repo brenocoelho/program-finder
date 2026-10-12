@@ -248,6 +248,33 @@ const SCENARIOS: Scenario[] = [
     askFirst: [],
     noFitCount: 32,
   },
+  {
+    name: "S9 S6 plus a 650 score: Healthcare, $150,000, no tier, 2 years, score 650 (D27)",
+    input: { amountCents: usd(150_000), businessType: "Healthcare", creditTier: null, yearsInBusiness: 2, creditScore: 650 },
+    fits: [],
+    close: [
+      [22, "credit"], // Midwest Business Finance · 504 Loan · 5.5% · 82 days
+      [27, "credit"], // Evergreen Business Capital · 504 Loan · 5.9% · 58 days
+      [39, "credit"], // Gateway Commercial Finance · 7(a) Standard · 8.5% · 57 days
+      [34, "credit"], // Keystone Community Bank · 7(a) Standard · 8.6% · 48 days
+      [44, "credit"], // Sterling Business Lending · 7(a) Small Loan · 9.4% · 23 days
+      [48, "credit"], // Frontier Capital Group · 7(a) Small Loan · 9.5% · 21 days
+      [40, "credit"], // Gateway Commercial Finance · 7(a) Small Loan · 9.6% · 25 days
+      [46, "credit"], // Sterling Business Lending · 7(a) Standard · 10.1% · 57 days
+      [32, "credit"], // Atlas Financial Services · SBA Express · 10.2% · 7 days
+      [17, "credit"], // Coastal Capital · 7(a) Standard · 10.3% · 53 days
+      [3, "credit"], // First National Bank · SBA Express · 11.4% · 13 days
+    ],
+    askFirst: [
+      11, // Heritage Credit Union · SBA Express · 10.3% · 10 days
+      2, // First National Bank · Community Advantage · 11.0% · 23 days
+      23, // Liberty SBA Lending · SBA Express · 11.5% · 10 days
+      38, // BlueRidge Lending Partners · SBA Express · 11.7% · 5 days
+      41, // Gateway Commercial Finance · SBA Express · 11.7% · 10 days
+      43, // Sterling Business Lending · SBA Express · 12.1% · 12 days
+    ],
+    noFitCount: 32,
+  },
 ];
 
 let catalog: Program[];

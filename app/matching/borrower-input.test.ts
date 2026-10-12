@@ -103,6 +103,15 @@ describe("credit score (D1, D20)", () => {
     });
   });
 
+  it("a score with a letter or symbol typo (64O, 640-) is rejected, never read as no score", () => {
+    for (const score of ["64O", "640-", "6e2"]) {
+      expect(parseBorrowerInput(raw({ score }), BUSINESS_TYPES)).toMatchObject({
+        ok: false,
+        fieldErrors: { score: expect.any(String) },
+      });
+    }
+  });
+
   it("an empty score means no score was typed", () => {
     expect(parseBorrowerInput(raw({ score: "" }), BUSINESS_TYPES)).toMatchObject({
       ok: true,

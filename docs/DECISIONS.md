@@ -267,3 +267,21 @@ Options:
 
 Chosen: extend `parseDollarsToCents` itself, case-insensitive and combinable with "$"/commas.
 Why: "One function for every amount the rep types, so '250k', '$250,000' and '250000' always give the same cents, and all the cases are tested in one place."
+
+## D27. An empty tier next to a failed score (2026-10-12)
+Found in review. With no tier and a typed score under the program's minimum, the spec's "a problem plus an unknown" made the row Doesn't fit. But credit already fails on the score, so no tier answer can change the result: with Fair or Good the same rows are Close. Healthcare, $150,000, no tier, 2 years, score 650: 11 programs went from Ask first to the collapsed Doesn't fit group.
+Options:
+- **Once credit has failed on the score, ignore the unknown tier (the same logic as D24):** the row is Close on credit when it has no other problem. The tier chip still shows "not given".
+- Keep the spec as written: a failed score plus an empty tier is Doesn't fit.
+
+Chosen: ignore the unknown tier once the score has failed. `RULES_VERSION` 1 → 2; spec section 4 updated; scenario S9 (0 Fits / 11 Close / 6 Ask first / 32 Doesn't fit) and status tests added.
+Why: "Typing more information must never hide options (D13)."
+
+## D28. Review findings left for later (2026-10-12)
+The pre-release review found 17 problems. Which to fix before the reps use it?
+Options:
+- **Fix #1, #2, #4, #5, #6 now (the D27 rule, score/years typos read as "no score", the import date read as the rate date, the missing "Lender confirms the business type" note, chips that show the outcome only by colour); put #3 (score in production request logs), #7 (rate/ratio unit mix-ups in the CSV), #8 (future `last_updated` never stale), #16 (free-text business type, "all" vs "All") and the low ones in docs/KNOWN_ISSUES.md.**
+- Fix everything before release.
+
+Chosen: fix #1, #2, #4, #5, #6 now; the rest go to docs/KNOWN_ISSUES.md with the risk and the proposed fix.
+Why: "I'm out of time. #3 only affects npm start, not the demo, and the current CSV is valid."

@@ -6,6 +6,7 @@ import { SearchForm } from "~/components/search-form";
 import type { BorrowerRawInput } from "~/matching/borrower-input";
 import { parseBorrowerInput } from "~/matching/borrower-input";
 import { matchPrograms } from "~/matching/match";
+import { freshnessOf } from "~/matching/rules";
 import { businessTypesOf } from "~/programs/business-types";
 import { loadLiveCatalog } from "~/programs/programs.server";
 import { todayIso } from "~/shared/date";
@@ -44,11 +45,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       fieldErrors: {},
       businessTypes: [] as string[],
       liveImport: null,
+      freshness: null,
     };
   }
 
   const businessTypes = businessTypesOf(catalog.programs);
   const liveImport = { id: catalog.import.id, createdAt: catalog.import.createdAt };
+  const today = todayIso();
+  const freshness = freshnessOf(catalog.programs, today);
 
   // Amount and business type are needed before any results (D12): an empty
   // field here is "not yet known", never "invalid".
@@ -59,6 +63,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       fieldErrors: {},
       businessTypes,
       liveImport,
+      freshness,
     };
   }
 
@@ -70,11 +75,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       fieldErrors: parsed.fieldErrors,
       businessTypes,
       liveImport,
+      freshness,
     };
   }
 
   const matchStart = performance.now();
-  const result = matchPrograms(parsed.value, catalog.programs, todayIso());
+  const result = matchPrograms(parsed.value, catalog.programs, today);
   ctx.timings.match = performance.now() - matchStart;
 
   return {
@@ -83,18 +89,19 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     fieldErrors: {},
     businessTypes,
     liveImport,
+    freshness,
     result,
   };
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { state, values, fieldErrors, businessTypes, liveImport } = loaderData;
+  const { state, values, fieldErrors, businessTypes, liveImport, freshness } = loaderData;
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
       <h1 className="text-2xl font-semibold">Program Finder</h1>
 
-      {liveImport !== null && <DataBanner liveImport={liveImport} />}
+      {liveImport !== null && <DataBanner liveImport={liveImport} freshness={freshness} />}
 
       <SearchForm values={values} fieldErrors={fieldErrors} businessTypes={businessTypes} />
 

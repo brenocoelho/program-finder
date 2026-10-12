@@ -18,7 +18,9 @@ const TIER_OPTIONS = [
  * submits a GET form from code; `replace: true` stops the Back button from
  * stepping through every keystroke, and React Router cancels an older
  * in-flight request so a slow stale search can't overwrite a newer one
- * (FR-11).
+ * (FR-11). Years and score are text fields, not type="number": a number
+ * field sends "" for text it can't read, so a typo like "64O" would become
+ * "no score" with no error instead of being rejected by the server (D20).
  */
 export function SearchForm({
   values,
@@ -133,9 +135,8 @@ export function SearchForm({
           <input
             id="years"
             name="years"
-            type="number"
-            min={0}
-            max={99}
+            type="text"
+            inputMode="numeric"
             defaultValue={values.years}
             aria-invalid={fieldErrors.years !== undefined}
             aria-describedby={fieldErrors.years !== undefined ? "years-error" : "years-hint"}
@@ -158,9 +159,8 @@ export function SearchForm({
           <input
             id="score"
             name="score"
-            type="number"
-            min={300}
-            max={850}
+            type="text"
+            inputMode="numeric"
             defaultValue={values.score}
             aria-invalid={fieldErrors.score !== undefined}
             aria-describedby={fieldErrors.score !== undefined ? "score-error" : undefined}

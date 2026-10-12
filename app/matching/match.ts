@@ -37,7 +37,11 @@ function statusOf(rules: RuleResult[]): { status: Status; closeProblem: Problem 
   if (failed("amount")) problems.push("amount");
   if (failed("years")) problems.push("years");
   if (failed("tier") || failed("score")) problems.push("credit"); // one problem (D13)
-  const hasUnknown = rules.some((r) => r.outcome === "unknown");
+  // A failed score already makes credit a known problem, so an empty tier
+  // can't change the result (D27, the same logic as D24).
+  const hasUnknown = rules.some(
+    (r) => r.outcome === "unknown" && !(r.rule === "tier" && failed("score")),
+  );
 
   if (problems.length === 0) {
     return { status: hasUnknown ? "ask_first" : "fits", closeProblem: null };

@@ -74,7 +74,12 @@ function amountRule(input: BorrowerInput, p: Program): Checked {
 function industryRule(input: BorrowerInput, p: Program): Checked {
   const eligible = p.eligibleBusinessType;
   const forAll = eligible === "All";
-  const requirement = forAll ? "Any business type" : `Only for ${eligible}`;
+  // "Other" on a program for All: it passes, but the lender has to confirm the type (D5).
+  const requirement = forAll
+    ? input.businessType === "Other"
+      ? "Lender confirms the business type"
+      : "Any business type"
+    : `Only for ${eligible}`;
   const borrower = input.businessType;
   // "Other" passes only programs for All (D5), even if a row were named "Other".
   const passes = forAll || (input.businessType !== "Other" && eligible === input.businessType);
@@ -141,4 +146,20 @@ export function checkRules(
 /** More than STALE_AFTER_DAYS before today. Exactly 31 days is not stale (D8). */
 export function isStale(lastUpdated: IsoDate, today: IsoDate): boolean {
   return daysBetween(lastUpdated, today) > STALE_AFTER_DAYS;
+}
+
+/** How old the live rates are, for the banner: the import date alone is not the rate date (D8). */
+export type Freshness = { oldest: IsoDate; newest: IsoDate; staleCount: number; total: number };
+
+/** Null for an empty catalog: there are no rates to date. */
+export function freshnessOf(programs: readonly Program[], today: IsoDate): Freshness | null {
+  if (programs.length === 0) return null;
+  // "YYYY-MM-DD" strings sort in date order.
+  const dates = programs.map((p) => p.lastUpdated).sort();
+  return {
+    oldest: dates[0],
+    newest: dates[dates.length - 1],
+    staleCount: dates.filter((d) => isStale(d, today)).length,
+    total: programs.length,
+  };
 }
