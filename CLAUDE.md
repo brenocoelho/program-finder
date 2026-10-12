@@ -29,7 +29,14 @@ When you add a script (tests, database, import), list it here with one line on w
 Before using a React Router API, check the react-router skill and the v8 docs it points to in node_modules/react-router/docs. No react-router-dom, no v6-era APIs.
 
 ## Where things go
-The folder layout is decided during the spec and recorded in docs/DECISIONS.md. Once it's decided, replace this paragraph with the real folders and keep it up to date. Until then, follow the code rules below.
+Business areas plus one components folder (D14). Planned; folders appear as the build tasks in docs/SPEC.md add them.
+- app/routes/: thin route modules (home.tsx, rep.tsx, recommend.ts, data-health.tsx, insights.tsx). Validate, call business code, render.
+- app/components/: all React components (search-form.tsx, result-row.tsx, …). Imported only by routes and other components.
+- app/matching/: pure match engine: borrower input schema, rules, status, ordering, RULES_VERSION. No I/O.
+- app/programs/: program schema, CSV parsing and change detection (pure), plus programs.server.ts, import.server.ts and data-health.server.ts (its SQL).
+- app/insights/: reps, the rep cookie, recommendation events and /insights queries (its SQL in .server.ts files).
+- app/shared/: money and date helpers, env.server.ts, db.server.ts, logger.server.ts, the request context and route-errors.server.ts.
+- db/migrations/: numbered plain SQL. scripts/: CLI entry points (migrate, import, add reps). e2e/: Playwright.
 
 ## Code rules
 - Organize code by business area, not by technical layer. Route files stay thin: validate input, call the business code, render. No business rules or SQL in routes or components.
@@ -89,5 +96,6 @@ The folder layout is decided during the spec and recorded in docs/DECISIONS.md. 
 - data/programs.csv: the source data. Treat it as correct; business rules come from its columns.
 - docs/DECISIONS.md: product and design decisions, with my reasons.
 - docs/UNDERSTANDING.md: the problem from the rep's side, what each CSV column means and how we use it, open questions, and 5 borrower test scenarios.
+- docs/SPEC.md: the V1 contract: scope, requirements, domain types, rules table, schema, routes, test plan and build order.
 - docs/private/: inputs that are never committed. Read them, but never copy them into committed files.
 When you create a new project doc (the understanding notes, the spec, known issues), add it to this list with one line on what it's for.
