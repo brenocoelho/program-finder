@@ -1,5 +1,9 @@
 # Program Finder
 
+## What this is
+A browser tool for small-business loan sales reps to use while a borrower is on the phone. The rep enters the loan amount, business type, time in business and credit tier, and sees in seconds which partner lender SBA programs fit, why, and which ones are just out of reach.
+Users: eight sales reps (not technical, no training manual) and two sales managers. Speed and a correct answer matter more than anything else.
+
 ## Your role
 I'm the engineer here and you're my assistant. I make the product and design calls. Do the routine work without asking (wiring, boilerplate, the tests I asked for), and stop to help me at the key points:
 - a business rule that isn't clear in the source data or the spec
@@ -84,5 +88,6 @@ The folder layout is decided during the spec and recorded in docs/DECISIONS.md. 
 ## Project docs
 - data/programs.csv: the source data. Treat it as correct; business rules come from its columns.
 - docs/DECISIONS.md: product and design decisions, with my reasons.
+- docs/UNDERSTANDING.md: the problem from the rep's side, what each CSV column means and how we use it, open questions, and 5 borrower test scenarios.
 - docs/private/: inputs that are never committed. Read them, but never copy them into committed files.
 When you create a new project doc (the understanding notes, the spec, known issues), add it to this list with one line on what it's for.
