@@ -25,9 +25,10 @@ When you use a React Router v8 API I might not know, add one line on what it doe
 React Router v8 (framework mode), TypeScript strict, Vite, Tailwind, Zod, postgres.js, Postgres 16 in Docker Compose, Vitest + fast-check, Playwright.
 - npm run dev: http://localhost:5173. I run it in my own terminal, don't start another one
 - npm run typecheck
-- npm run setup: starts Postgres (docker compose, port 5433) and runs the migrations. Run once after `npm install`.
+- npm run setup: starts Postgres (docker compose, port 5433), runs the migrations and imports data/programs.csv. Run once after `npm install`.
 - npm run db:up: starts the Postgres container and waits until it is healthy.
 - npm run db:migrate [-- <database-url>]: applies new files from db/migrations in order and records them; safe to run twice. Defaults to the finder database.
+- npm run db:import [-- <file>]: imports a program CSV (default data/programs.csv). A valid file becomes the live data, a file with any invalid row is rejected as a whole and the old data stays live, the file that is already live is skipped. Exit code 1 when rejected.
 - npm run db:reset: deletes the database volume, starts Postgres again and migrates. Destroys local data.
 - npm test: all Vitest tests, unit and integration (needs `npm run db:up`; integration tests run on the finder_test database, which is migrated first). CI runs this.
 - npm run test:unit / npm run test:integration: one of the two Vitest projects.

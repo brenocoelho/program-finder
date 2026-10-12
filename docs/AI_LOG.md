@@ -33,3 +33,12 @@ Raw transcripts: attached to my submission email, one per phase. They include th
 - What I changed or threw away, and why: `npm test` skipped the integration tests, so it now runs unit and integration projects against finder_test, with the test database migrated first. The dev server crashed on the pino-pretty transport; the AI had only checked the production build, so I had it use plain JSON logs everywhere and remove pino-pretty. The ErrorBoundary with the request id moved to the finder step.
 - Key decision I made: rep codes are seeded inside 0001_init.sql ([D21](DECISIONS.md)), and setup migrates only the dev database ([D22](DECISIONS.md)).
 - Evidence: docker-compose.yml, db/migrations/0001_init.sql, scripts/migrate.ts, app/shared/, app/routes/healthz.ts, vitest.config.ts; transcript:  03-scaffold.txt (attached to the email).
+
+### 2026-10-12 13:55 | Building | Claude Code in VS Code, Claude Sonnet 5.5
+- Goal: the catalog import (task 4): CSV to programs or issues, one transaction, a bad file rejected as a whole, `npm run db:import`, and a `/data-health` page.
+- Prompt (short): "Now the catalog import. Read the types, the rules and the schema in the spec. First the tests… Run them and confirm they fail. Then write the code until they pass…"
+- What the AI produced: tests first (money, dates, row parser with 5 real rows and a broken fixture, integration), then `app/programs/` (row schema, parser, import, live catalog, data health), `shared/money.ts` and `shared/date.ts`, the import script, `/data-health`, and D23. It stopped once to ask how to treat range limits.
+- What I kept: schema limits only plus an `out_of_range` code ([D23](DECISIONS.md)); the parser, import and page as written. The AI's same-file-twice test caught a bug in the spec: the idempotency key created a second import. The fix is a same-hash-as-live check, and SPEC section 5 was updated.
+- What I changed or threw away, and why: TODO(Breno). The notes say a score range was added to the import and the import chained into `db:reset` for the demo. At the time of this entry neither is in the working tree (the score has only the schema limit, and `db:reset` still only migrates), and D23 chose schema limits only.
+- Key decision I made: range limits are the schema's, plus `out_of_range` ([D23](DECISIONS.md), reason still to be written).
+- Evidence: app/programs/, app/shared/money.ts, app/shared/date.ts, scripts/import-programs.ts, app/routes/data-health.tsx, docs/DECISIONS.md D23; transcript: 04-catalog.txt (to be exported).

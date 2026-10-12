@@ -219,7 +219,7 @@ create table if not exists data_issues (
   row_number   int,                                   -- null = whole-file issue (missing column, empty file)
   column_name  text,
   value        text,                                  -- first 200 chars
-  code         text not null,                         -- missing_value | not_a_number | not_whole_number | negative | too_many_decimals | min_over_max | unknown_tier | unknown_collateral | bad_date | duplicate_program | missing_column | empty_file
+  code         text not null,                         -- missing_value | not_a_number | not_whole_number | negative | too_many_decimals | min_over_max | unknown_tier | unknown_collateral | bad_date | duplicate_program | missing_column | empty_file | out_of_range | malformed_csv   -- the last two added in D23
   message      text not null
 );
 create index if not exists data_issues_import_idx on data_issues (import_id);
@@ -253,7 +253,7 @@ create index if not exists rec_events_created_idx on recommendation_events (crea
 ```
 
 Writes:
-- **Import:** one transaction under `pg_advisory_xact_lock`. Insert `data_imports` `ON CONFLICT (idempotency_key) DO NOTHING`. If nothing was inserted, it's a no-op ("already live"). Then insert either every `programs` row (accepted) or every `data_issues` row (rejected).
+- **Import:** one transaction under `pg_advisory_xact_lock`. If the file's hash equals the live import's, it's a no-op ("already live"). Otherwise insert `data_imports` `ON CONFLICT (idempotency_key) DO NOTHING`; if nothing was inserted, it's a no-op (a retry of a rejected file). Then insert either every `programs` row (accepted) or every `data_issues` row (rejected). The key alone can't catch "already live": it names the live import, which the file's own import was saved before.
 - **Recommend:** a single insert `ON CONFLICT (idempotency_key) DO NOTHING`.
 - **Reps:** R01–R08 and M01–M02 are inserted by `0001_init.sql` with `INSERT … ON CONFLICT (code) DO NOTHING` (D21). There's no add-reps script.
 
@@ -316,7 +316,7 @@ Unit tests are pure, run with Vitest, and need no database. Integration tests ru
 
 Each task ends with typecheck and tests green, and is reviewed before the next. Tasks 1–7 are the V1 core, ~140 min. The two [CUT-FIRST] tasks come last and are dropped from the bottom up: the rate-changed flag first (with one CSV the rep never sees it, D19), then pick-and-compare. All in, ~175 min.
 
-**Status (2026-10-12):** task 3 is partly done (the scaffold: Postgres, env, migration + rep seed, migrate script, middleware, `/healthz`, test setup). Pushed back to the finder step (task 5): `route-errors.server.ts`, the ErrorBoundary with the request id, and the FR-19 test. Tasks 1, 2 and 4–9 not started.
+**Status (2026-10-12):** task 3 is partly done (the scaffold: Postgres, env, migration + rep seed, migrate script, middleware, `/healthz`, test setup). Pushed back to the finder step (task 5): `route-errors.server.ts`, the ErrorBoundary with the request id, and the FR-19 test. Task 4 (CSV import) is done, with `/data-health` (import summary, rejected imports, issues) built early from task 7; its stale-row count waits for `STALE_AFTER_DAYS` in task 2. Task 1 is partly done (`shared/money.ts`, `shared/date.ts`, `programs/program.ts`; the borrower input schema and the D20 limits are not). Tasks 2, 5, 6, 8, 9 not started.
 
 | # | Task | Min | Done when |
 |---|---|---|---|

@@ -1,0 +1,16 @@
+lender_name,program_type,min_loan_amount,max_loan_amount,min_credit_score,credit_tier_required,min_years_in_business,interest_rate_min,interest_rate_max,max_term_months,sba_guarantee_pct,eligible_business_types,requires_collateral,max_existing_debt_ratio,turnaround_days,special_requirements,last_updated
+Alpha Bank,Community Advantage,10000,250000,620,Fair,1,11,13.6,84,85,All,Varies,0.5,23,No recent bankruptcies (7 years),1/16/2026
+Bravo Bank,Community Advantage,ten thousand,250000,620,Fair,1,11,13.6,84,85,All,Varies,0.5,23,,1/16/2026
+Charlie Bank,Community Advantage,10000,250000.50,620,Fair,1,11,13.6,84,85,All,Varies,0.5,23,,1/16/2026
+Delta Bank,Community Advantage,10000,250000,620,Fair,-1,11,13.6,84,85,All,Varies,0.5,23,,1/16/2026
+Echo Bank,Community Advantage,10000,250000,620,Fair,1,11,13.666,84,85,All,Varies,0.5,23,,1/16/2026
+Foxtrot Bank,Community Advantage,10000,250000,620,Fair,1,14,13.6,84,85,All,Varies,0.5,23,,1/16/2026
+Golf Bank,Community Advantage,10000,250000,620,Platinum,1,11,13.6,84,85,All,Varies,0.5,23,,1/16/2026
+Hotel Bank,Community Advantage,10000,250000,620,Fair,1,11,13.6,84,85,All,Maybe,0.5,23,,1/16/2026
+India Bank,Community Advantage,10000,250000,620,Fair,1,11,13.6,84,85,All,Varies,0.5,23,,2026-01-16
+,Community Advantage,10000,250000,620,Fair,1,11,13.6,84,85,All,Varies,0.5,23,,1/16/2026
+Kilo Bank,Community Advantage,10000,250000,620,Fair,1,11,13.6,84,150,All,Varies,0.5,23,,1/16/2026
+Alpha Bank,Community Advantage,10000,250000,620,Fair,1,11,13.6,84,85,All,Varies,0.5,23,,1/16/2026
+Mike Bank,Community Advantage,10000,250000,620,Fair,1,11,13.6,0,85,All,Varies,0.5,soon,,1/16/2026
+
+November Bank,Community Advantage,10000,250000

@@ -1,0 +1,6 @@
+lender_name,program_type,min_loan_amount,max_loan_amount,min_credit_score,credit_tier_required,min_years_in_business,interest_rate_min,interest_rate_max,max_term_months,sba_guarantee_pct,eligible_business_types,requires_collateral,max_existing_debt_ratio,turnaround_days,special_requirements,last_updated
+First National Bank,Community Advantage,10000,250000,620,Fair,1,11,13.6,84,85,All,Varies,0.5,23,No recent bankruptcies (7 years),1/16/2026
+First National Bank,504 Loan,250000,5000000,680,Good,2,7,7.7,240,40,Manufacturing,Yes,0.5,73,No recent bankruptcies (7 years),1/23/2026
+First National Bank,7(a) Small Loan,30000,250000,640,Good,1,10.6,12.6,120,85,Restaurant/Food Service,No,0.55,20,,1/31/2026
+Pacific Commerce Bank,7(a) Standard,150000,5000000,660,Good,3,9.9,11.6,300,75,Professional Services,Varies,0.55,51,Requires 10% owner injection,1/28/2026
+Pacific Commerce Bank,7(a) Small Loan,50000,350000,640,Good,1,11.1,12.2,120,85,Construction,No,,19,Franchise must be SBA-approved,1/27/2026

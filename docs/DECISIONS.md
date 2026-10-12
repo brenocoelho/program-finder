@@ -227,3 +227,14 @@ Options:
 Chosen: dev database only.
 Update: npm test now runs the integration tests, and their setup migrates finder_test before each run (see the tests change after this decision).
 Why: "The test database belongs to the tests. The integration setup migrates finder_test before the tests run, so setup only needs to prepare the database I use in the app. This keeps the two separate, and a test can never depend on the dev data."
+
+## D23. Range limits when importing a row (2026-10-12)
+The spec's issue codes had no name for a number that reads fine but is out of range (a min loan of 0, a max term of 0, an SBA guarantee of 150%). The table CHECKs would reject those rows anyway.
+Options:
+- **Schema limits only, plus a new `out_of_range` code:** reject exactly what the table CHECKs reject; a typo like a 6800 min score would still import.
+- Schema limits only, reuse existing codes (`negative`, `min_over_max`): the code name is wrong for those cases.
+- Schema limits plus plausibility limits (score 300–850, rates ≤ 100%, …): catches a 6800 typo, but invents numbers that aren't in the data or the spec.
+
+Chosen: schema limits only, plus `out_of_range`.
+Why: _waiting for your reason_
+Also added with it, not asked separately (confirm or change): code `malformed_csv` for a file or row that can't be read as CSV (unclosed quote, a row with a different number of values than the header, not UTF-8). The spec's list had no code for that either.
