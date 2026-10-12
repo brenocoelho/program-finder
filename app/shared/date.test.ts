@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseUsDateToIso } from "./date";
+import { daysBetween, parseUsDateToIso } from "./date";
 
 describe("US date to ISO date", () => {
   it("1/16/2026 is 2026-01-16", () => {
@@ -24,5 +24,23 @@ describe("US date to ISO date", () => {
     for (const text of ["2026-01-16", "1/16/26", "Jan 16 2026", "", "1/16", "1/16/2026 10:00"]) {
       expect(parseUsDateToIso(text)).toBeNull();
     }
+  });
+});
+
+describe("days between two ISO dates", () => {
+  it("the same day is 0 and the next day is 1", () => {
+    expect(daysBetween("2026-10-12", "2026-10-12")).toBe(0);
+    expect(daysBetween("2026-10-12", "2026-10-13")).toBe(1);
+  });
+
+  it("counts real calendar days across months, a leap February and a new year", () => {
+    expect(daysBetween("2026-09-11", "2026-10-12")).toBe(31);
+    expect(daysBetween("2026-01-29", "2026-03-01")).toBe(31);
+    expect(daysBetween("2028-01-30", "2028-03-01")).toBe(31);
+    expect(daysBetween("2026-12-01", "2027-01-01")).toBe(31);
+  });
+
+  it("is negative when the second date is earlier", () => {
+    expect(daysBetween("2026-10-13", "2026-10-12")).toBe(-1);
   });
 });

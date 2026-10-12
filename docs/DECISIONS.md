@@ -142,7 +142,7 @@ Follow-up: a typed score can still move a row out of Close when the row already 
 - A new "Two things off" group under Close.
 
 Chosen: accept it.
-Why: _waiting for your reason_
+Why: "Typing more information must never hide options from the rep." (This is the reason for the change in D13 itself: a typed score can still turn a Close row into Doesn't fit, but only when the row already has a second problem.)
 
 ## D14. Folder layout (2026-10-12)
 Options:
@@ -236,5 +236,24 @@ Options:
 - Schema limits plus plausibility limits (score 300–850, rates ≤ 100%, …): catches a 6800 typo, but invents numbers that aren't in the data or the spec.
 
 Chosen: schema limits only, plus `out_of_range`.
-Why: _waiting for your reason_
+Why: "I trust the lender data, so the import only rejects values that can't be real."
 Also added with it, not asked separately (confirm or change): code `malformed_csv` for a file or row that can't be read as CSV (unclosed quote, a row with a different number of values than the header, not UTF-8). The spec's list had no code for that either.
+
+## D24. A program with no requirement on a rule (2026-10-12)
+`min_years_in_business` can be 0 (the schema and the import accept it; no row in today's file has it). The spec says an empty years field is unknown.
+Options:
+- **Pass:** a program with a minimum of 0 years passes the years rule whether or not the rep entered years.
+- Unknown: the literal spec; the row would say "Ask first: years" even though no answer can change the result.
+
+Chosen: pass.
+Why: "Nothing is asked of the borrower, so a missing answer can't change the result."
+Scope: only the years rule. Tier and score always have a requirement in the data (the lowest tier is still a tier, and `min_credit_score` must be above 0), so an empty tier stays unknown (D12). A program for All business types already passes any type (D5). Rules version stays 1: the engine had not run before this rule was written.
+
+## D25. The engine does not know about imports (2026-10-12)
+The spec's `MatchResult` carried `importId`, but `matchPrograms` has no import parameter, so with an empty program list there was nothing to put in it.
+Options:
+- **Drop `importId` from `MatchResult`;** the loader already has the live import.
+- Add an `importId` parameter to `matchPrograms`.
+
+Chosen: drop it.
+Why: "The loader already has the live import, and the engine should not know about imports."

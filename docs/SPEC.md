@@ -1,6 +1,6 @@
 # Program Finder: V1 spec
 
-Contracts for V1. Business rules come from `data/programs.csv`, [UNDERSTANDING.md](UNDERSTANDING.md) and [DECISIONS.md](DECISIONS.md) (D1–D20). `RULES_VERSION = 1`. Any rule change bumps it and updates this spec, the tests and DECISIONS.md together.
+Contracts for V1. Business rules come from `data/programs.csv`, [UNDERSTANDING.md](UNDERSTANDING.md) and [DECISIONS.md](DECISIONS.md) (D1–D25). `RULES_VERSION = 1`. Any rule change bumps it and updates this spec, the tests and DECISIONS.md together.
 
 ## 1. Scope
 
@@ -122,12 +122,17 @@ type RuleResult =
 
 type Status = "fits" | "close" | "ask_first" | "no_fit";
 type Problem = "amount" | "years" | "credit";              // tier and score fails count as one "credit" problem (D4, D13)
+type RuleCheck = {                                          // the plain-words text of one rule result, same order as `rules`
+  rule: RuleName; outcome: "pass" | "unknown" | "fail";
+  requirement: string;   // "Min 2 yrs in business", "Loan $10,000 to $250,000", "Good credit or better", "Min 680 score", "Only for Manufacturing"
+  borrower: string;      // "Borrower: 1 yr", "Borrower: $300,000", "Borrower: not given"
+};
 type Evaluation = {
-  program: Program; status: Status; rules: RuleResult[]; stale: boolean;
+  program: Program; status: Status; rules: RuleResult[]; checks: RuleCheck[]; stale: boolean;
   closeProblem: Problem | null;                             // set only when status is "close"
 };
 type MatchResult = {
-  rulesVersion: number; importId: number;
+  rulesVersion: number;                                     // the engine knows nothing about imports (D25)
   fits: Evaluation[]; close: Evaluation[]; askFirst: Evaluation[]; noFit: Evaluation[];
 };
 
@@ -142,7 +147,7 @@ Constants in `app/matching/rules-version.ts`: `RULES_VERSION = 1`, `STALE_AFTER_
 |---|---|---|---|---|---|---|
 | Amount | `min_loan_amount`, `max_loan_amount` | min ≤ amount ≤ max, both ends inclusive (D3) | amount < min or > max | never (required, D12) | yes (D4) | "$10,000 over this lender's max ($250,000)" / "$5,000 under the min ($10,000)" |
 | Business type | `eligible_business_types` | value is `All`, or equals the type. "Other" passes only `All` (D5) | anything else | never (required) | **never** (D4) | Doesn't fit: "Only for Manufacturing". On an `All` row when the type is Other: "Lender confirms the business type" |
-| Years | `min_years_in_business` | years ≥ min (whole years, D2) | years < min | field empty | yes | "Needs 2+ years in business (borrower: 1)" |
+| Years | `min_years_in_business` | years ≥ min (whole years, D2). A minimum of 0 passes even when the field is empty (D24) | years < min | field empty and min > 0 | yes | "Needs 2+ years in business (borrower: 1)" |
 | Credit tier | `credit_tier_required` | rank(input) ≥ rank(required), Excellent 3 > Good 2 > Fair 1 (D1) | rank lower | field empty | yes, as part of credit (D13) | "Needs Good credit or better" |
 | Credit score | `min_credit_score` | only run when a score is typed: score ≥ min (D1) | score < min | not run when empty (it is not unknown, D1) | yes, as part of credit: tier and score together are one problem (D13) | Always on the row: "needs 680+". On fail: "Needs 680+ score (borrower: 650)" |
 | Stale (display) | `last_updated` | today − last_updated ≤ 31 days | > 31 days → warning (D8) | — | — | "Rates may be out of date (as of Jan 16, 2026)" |
@@ -286,14 +291,14 @@ React Router v8 APIs used (one line each, as CLAUDE.md asks):
 
 ## 7. Test plan
 
-Unit tests are pure, run with Vitest, and need no database. Integration tests run against the real test database (`TEST_DATABASE_URL`). Playwright covers the main path only. Scenarios use the real CSV with `today = 2026-10-12` and no score unless stated. The counts come from a reference check against `data/programs.csv`.
+Unit tests are pure, run with Vitest, and need no database. Integration tests run against the real test database (`TEST_DATABASE_URL`). Playwright covers the main path only. Scenarios read `data/programs.csv` itself (no fixture copy), with `today = 2026-10-12` and no score unless stated, so a change to the real catalog fails these tests on purpose and tells us to re-check them. The counts come from a reference check against `data/programs.csv`.
 
 | Req | Tests (named after the rule) | Level |
 |---|---|---|
 | FR-1 | "no results until amount and business type are given"; "tier and years may be empty" | unit (input schema) |
 | FR-2 | "$250,000, 250,000 and 250000 are the same amount"; "250000.50 is rejected: whole dollars only"; "$1 and $50,000,000 are accepted"; "$0 and $50,000,001 are rejected"; "0 and 99 years are accepted"; "100 years and 0.5 years are rejected"; "scores 300 and 850 are accepted"; "scores 299 and 851 are rejected"; "a 6800 score typo shows an error and no results, never Fits"; "an empty score means no score"; "an invalid field gives no results" | unit + loader |
-| FR-3 | Amount: "exactly the min is accepted", "exactly the max is accepted", "$1 under the min fails", "$1 over the max fails". Industry: "All accepts any type", "Other passes only All rows", "a listed industry fails other industries". Years: "exactly the min passes", "one under fails", "empty is unknown". Tier: "Excellent passes Good and Fair rows", "Fair fails a Good row", "empty is unknown". Score: "not typed: the rule is not run", "exactly the min passes", "one under fails" | unit |
-| FR-4 | "an industry fail is never Close"; "one problem plus one unknown is Doesn't fit"; "tier and score both failing is one credit problem: Close (D13)"; "a score fail plus an amount fail is two problems: Doesn't fit (D13 follow-up)". Property (fast-check): "when credit is a row's only problem, typing any score keeps it Close". Scenario counts (Fits / Close / Ask first / Doesn't fit): **S1** Construction $250k Good 3y → 27/0/0/22. **S2** Healthcare $150k Good 2y → 17/5/0/27. **S3** Restaurant $260k Fair 2y → 1/16/0/32. **S4** Retail $50k Good 0y → 0/12/0/37. **S5** Healthcare $300k Fair 2y → 0/16/0/33. **S6** S2 without tier → 0/0/17/32. **S7** S2 + score 650 → 6/11/0/32 (S2's 5 Close rows also fail the score: two problems). **S8** Healthcare $150k Fair 2y + score 650 → 1/16/0/32, the same as with no score | unit (fixture: `__fixtures__/programs.csv` = copy of the data) |
+| FR-3 | Amount: "exactly the min is accepted", "exactly the max is accepted", "$1 under the min fails", "$1 over the max fails". Industry: "All accepts any type", "Other passes only All rows", "a listed industry fails other industries". Years: "exactly the min passes", "one under fails", "empty is unknown", "min 0 passes even when empty (D24)". Tier: "Excellent passes Good and Fair rows", "Fair fails a Good row", "empty is unknown". Score: "not typed: the rule is not run", "exactly the min passes", "one under fails" | unit |
+| FR-4 | "an industry fail is never Close"; "one problem plus one unknown is Doesn't fit"; "tier and score both failing is one credit problem: Close (D13)"; "a score fail plus an amount fail is two problems: Doesn't fit (D13 follow-up)". Property (fast-check): "when credit is a row's only problem, typing any score keeps it Close". Scenario counts (Fits / Close / Ask first / Doesn't fit): **S1** Construction $250k Good 3y → 27/0/0/22. **S2** Healthcare $150k Good 2y → 17/5/0/27. **S3** Restaurant $260k Fair 2y → 1/16/0/32. **S4** Retail $50k Good 0y → 0/12/0/37. **S5** Healthcare $300k Fair 2y → 0/16/0/33. **S6** S2 without tier → 0/0/17/32. **S7** S2 + score 650 → 6/11/0/32 (S2's 5 Close rows also fail the score: two problems). **S8** Healthcare $150k Fair 2y + score 650 → 1/16/0/32, the same as with no score | unit (reads `data/programs.csv` directly) |
 | FR-5 | "S3: First National Bank CA is Close, $10,000 over its $250,000 max"; "S4: Liberty SBA Express is Close on years only"; "S8: a row failing on tier and score names both" | unit |
 | FR-6 | "S6: every Ask first row asks for credit tier" | unit |
 | FR-7 | "S1 starts with Midwest Business Finance 504 at 5.5%"; "equal rates are ordered by turnaround, then lender, then program"; property: "the same input always gives the same order" (fast-check, shuffled program arrays) | unit + property |
@@ -316,12 +321,12 @@ Unit tests are pure, run with Vitest, and need no database. Integration tests ru
 
 Each task ends with typecheck and tests green, and is reviewed before the next. Tasks 1–7 are the V1 core, ~140 min. The two [CUT-FIRST] tasks come last and are dropped from the bottom up: the rate-changed flag first (with one CSV the rep never sees it, D19), then pick-and-compare. All in, ~175 min.
 
-**Status (2026-10-12):** task 3 is partly done (the scaffold: Postgres, env, migration + rep seed, migrate script, middleware, `/healthz`, test setup). Pushed back to the finder step (task 5): `route-errors.server.ts`, the ErrorBoundary with the request id, and the FR-19 test. Task 4 (CSV import) is done, with `/data-health` (import summary, rejected imports, issues) built early from task 7; its stale-row count waits for `STALE_AFTER_DAYS` in task 2. Task 1 is partly done (`shared/money.ts`, `shared/date.ts`, `programs/program.ts`; the borrower input schema and the D20 limits are not). Tasks 2, 5, 6, 8, 9 not started.
+**Status (2026-10-12):** task 3 is partly done (the scaffold: Postgres, env, migration + rep seed, migrate script, middleware, `/healthz`, test setup). Pushed back to the finder step (task 5): `route-errors.server.ts`, the ErrorBoundary with the request id, and the FR-19 test. Task 4 (CSV import) is done, with `/data-health` (import summary, rejected imports, issues) built early from task 7; its stale-row count waits for `STALE_AFTER_DAYS` in task 2. Task 1 is partly done (`shared/money.ts`, `shared/date.ts`, `programs/program.ts`; the borrower input schema and the D20 limits are not). Task 2 (match engine) is done: `rules.ts`, `match.ts`, `rules-version.ts`, S1–S8, edges and properties; the NFR-2 benchmark was left out on purpose (see KNOWN_ISSUES), the scenarios read `data/programs.csv` directly instead of a fixture copy, and `STALE_AFTER_DAYS` now exists for the `/data-health` stale count. `borrower-input.ts` is the type only; its Zod schema and D20 limits are still task 1. Tasks 5, 6, 8, 9 not started.
 
 | # | Task | Min | Done when |
 |---|---|---|---|
 | 1 | **Money, inputs, program schema** (types and tests first): `shared/money.ts`, `matching/borrower-input.ts` (with the D20 limits), `programs/program.ts`, Vitest config, `npm test` | 20 | FR-1, FR-2 unit tests and money parsing tests pass |
-| 2 | **Match engine** (tests first): `matching/rules.ts`, `match.ts` (credit = tier + score as one problem), `rules-version.ts`, CSV fixture, S1–S8, edges, fast-check properties, benchmark | 20 | FR-3–FR-7, FR-9, NFR-2, NFR-4 green |
+| 2 | **Match engine** (tests first): `matching/rules.ts`, `match.ts` (credit = tier + score as one problem), `rules-version.ts`, CSV fixture, S1–S8, edges, fast-check properties, benchmark | 20 | FR-3–FR-7, FR-9, NFR-4 green. **Done.** NFR-2 benchmark pushed back |
 | 3 | **Database and request plumbing**: `docker-compose.yml` (Postgres 16, port 5433), `0001_init.sql` (schema + rep codes), `scripts/migrate.ts`, `env.server.ts`, `db.server.ts`, `logger.server.ts`, root middleware (request id, Server-Timing), `/healthz`, `route-errors.server.ts`, root ErrorBoundary. **Scaffold done except `route-errors.server.ts`, the ErrorBoundary changes and the FR-19 test** | 20 | migrations run twice cleanly; FR-19 test |
 | 4 | **CSV import**: `programs/parse-programs-csv.ts` (pure, rows → programs or issues), `import.server.ts`, `scripts/import-programs.ts`, `npm run db:import` | 20 | FR-13 green; the sample CSV imports 49 rows |
 | 5 | **Finder screen**: `routes/home.tsx` loader, `programs.server.ts` (live programs), `components/search-form.tsx` (live, debounced), `result-group.tsx`, `result-row.tsx` (aligned table columns, stale warning, lender will check) | 20 | FR-1–FR-9, FR-11, FR-12 visible in the browser with S1–S5 |

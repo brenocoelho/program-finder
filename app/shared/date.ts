@@ -16,3 +16,15 @@ export function parseUsDateToIso(text: string): IsoDate | null {
   const pad = (n: number, width: number) => String(n).padStart(width, "0");
   return `${pad(year, 4)}-${pad(month, 2)}-${pad(day, 2)}`;
 }
+
+const MS_PER_DAY = 86_400_000;
+
+function dayNumber(iso: IsoDate): number {
+  const [year, month, day] = iso.split("-").map(Number);
+  return Date.UTC(year, month - 1, day) / MS_PER_DAY; // UTC: no time zone or daylight saving shifts
+}
+
+/** Whole calendar days from `from` to `to` (both "YYYY-MM-DD"). Negative when `to` is earlier. */
+export function daysBetween(from: IsoDate, to: IsoDate): number {
+  return dayNumber(to) - dayNumber(from);
+}

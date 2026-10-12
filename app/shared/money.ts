@@ -76,3 +76,12 @@ export function parseRatioToBp(text: string): NumberResult {
 export function parseWholeNumber(text: string): NumberResult {
   return scaled(text, 0, false);
 }
+
+/** 25_000_000 is "$250,000"; cents show only when they are not zero: 25_000_001 is "$250,000.01". */
+export function formatCents(cents: Cents): string {
+  const sign = cents < 0 ? "-" : "";
+  const abs = Math.abs(cents);
+  const dollars = String(Math.floor(abs / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const rest = abs % 100;
+  return `${sign}$${dollars}${rest === 0 ? "" : `.${String(rest).padStart(2, "0")}`}`;
+}

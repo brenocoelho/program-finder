@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
+  formatCents,
   parseDollarsToCents,
   parsePercentToBp,
   parseRatioToBp,
@@ -124,5 +125,29 @@ describe("whole numbers", () => {
     expect(parseWholeNumber("-1")).toEqual(bad("negative"));
     expect(parseWholeNumber("two")).toEqual(bad("not_a_number"));
     expect(parseWholeNumber("")).toEqual(bad("empty"));
+  });
+});
+
+describe("cents to dollars text", () => {
+  it("whole dollars have no decimals and thousands separators", () => {
+    expect(formatCents(25_000_000)).toBe("$250,000");
+    expect(formatCents(1_000_000)).toBe("$10,000");
+    expect(formatCents(100)).toBe("$1");
+    expect(formatCents(0)).toBe("$0");
+  });
+
+  it("anything that is not whole dollars shows both decimals", () => {
+    expect(formatCents(25_000_001)).toBe("$250,000.01");
+    expect(formatCents(1)).toBe("$0.01");
+    expect(formatCents(150)).toBe("$1.50");
+  });
+
+  it("an amount survives parse then format", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 5_000_000_000 }), (dollars) => {
+        const text = formatCents(dollars * 100);
+        expect(parseDollarsToCents(text)).toEqual({ ok: true, value: dollars * 100 });
+      }),
+    );
   });
 });
