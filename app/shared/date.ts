@@ -28,3 +28,29 @@ function dayNumber(iso: IsoDate): number {
 export function daysBetween(from: IsoDate, to: IsoDate): number {
   return dayNumber(to) - dayNumber(from);
 }
+
+/** The server's current date, in UTC, as "YYYY-MM-DD". */
+export function todayIso(): IsoDate {
+  return new Date().toISOString().slice(0, 10);
+}
+
+const MONTH_NAMES = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/** "2026-01-16" is "Jan 16, 2026", a rep-readable date (FR-9). */
+export function formatHumanDate(iso: IsoDate): string {
+  const [year, month, day] = iso.split("-").map(Number);
+  return `${MONTH_NAMES[month - 1]} ${day}, ${year}`;
+}

@@ -52,13 +52,38 @@ function scaled(text: string, decimals: number, dollars: boolean): NumberResult 
   return { ok: true, value };
 }
 
-/** "$250,000", "250,000" and "250000" are 25_000_000 cents. Whole dollars only. */
-export function parseDollarsToCents(text: string): NumberResult {
+function plainDollarsToCents(text: string): NumberResult {
   const dollars = scaled(text, 0, true);
   if (!dollars.ok) return dollars;
   const cents = dollars.value * 100;
   return Number.isSafeInteger(cents)
     ? { ok: true, value: cents }
+    : { ok: false, reason: "too_large" };
+}
+
+// A trailing k/K (x1,000) or m/M (x1,000,000), e.g. "250k", "1.2M" (D26).
+const SHORTHAND = /^(.*)([kKmM])$/;
+
+/**
+ * "$250,000", "250,000" and "250000" are 25_000_000 cents. Whole dollars
+ * only. Also reads shorthand (D26): "250k" and "1.2m" (case-insensitive),
+ * combinable with "$" and thousands commas before the suffix ("$1,200k").
+ * `decimals` is chosen so `scaled`'s own 10^decimals scaling already equals
+ * the shorthand multiplier times 100 (cents per dollar), so its value is the
+ * cent amount directly; more fractional digits than that can't resolve to a
+ * whole cent and `scaled` already rejects them as too_many_decimals.
+ */
+export function parseDollarsToCents(text: string): NumberResult {
+  const trimmed = text.trim();
+  const match = SHORTHAND.exec(trimmed);
+  if (match === null) return plainDollarsToCents(trimmed);
+
+  const [, body, suffix] = match;
+  const decimals = suffix.toLowerCase() === "k" ? 5 : 8;
+  const scaledBody = scaled(body, decimals, true);
+  if (!scaledBody.ok) return scaledBody;
+  return Number.isSafeInteger(scaledBody.value)
+    ? { ok: true, value: scaledBody.value }
     : { ok: false, reason: "too_large" };
 }
 
@@ -84,4 +109,13 @@ export function formatCents(cents: Cents): string {
   const dollars = String(Math.floor(abs / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   const rest = abs % 100;
   return `${sign}$${dollars}${rest === 0 ? "" : `.${String(rest).padStart(2, "0")}`}`;
+}
+
+/** 1140 is "11.40%". Always two decimals, for a steady column width in rate ranges. */
+export function formatBp(bp: BasisPoints): string {
+  const sign = bp < 0 ? "-" : "";
+  const abs = Math.abs(bp);
+  const whole = Math.floor(abs / 100);
+  const frac = String(abs % 100).padStart(2, "0");
+  return `${sign}${whole}.${frac}%`;
 }

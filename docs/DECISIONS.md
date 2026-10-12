@@ -257,3 +257,13 @@ Options:
 
 Chosen: drop it.
 Why: "The loader already has the live import, and the engine should not know about imports."
+
+## D26. Amount shorthand: "250k", "1.2m" (2026-10-12)
+The amount field (D20: $1 to $50,000,000, whole dollars) only reads "$250,000", "250,000" and "250000". A rep on a call is more likely to type "250k".
+Options:
+- **Extend `parseDollarsToCents` itself to also read a trailing k/K or m/M (×1,000 / ×1,000,000), case-insensitive, combinable with "$" and thousands commas and decimals before the suffix ("$1,200k"), still bounded by D20's limits and still rejecting anything that doesn't land on a whole cent.**
+- Add a second function (`parseDollarsToCentsFlexible`) used only by the borrower-input field, leaving `parseDollarsToCents` untouched for the CSV import path.
+- Handle shorthand in the UI only (expand "250k" to "250000" in the browser before it ever reaches parsing).
+
+Chosen: extend `parseDollarsToCents` itself, case-insensitive and combinable with "$"/commas.
+Why: "One function for every amount the rep types, so '250k', '$250,000' and '250000' always give the same cents, and all the cases are tested in one place."

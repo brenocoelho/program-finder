@@ -49,17 +49,26 @@ export default function App() {
   return <Outlet />;
 }
 
+function requestIdOf(data: unknown): string | null {
+  return typeof data === "object" && data !== null && "requestId" in data && typeof data.requestId === "string"
+    ? data.requestId
+    : null;
+}
+
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   let message = "Oops!";
   let details = "An unexpected error occurred.";
   let stack: string | undefined;
 
   if (isRouteErrorResponse(error)) {
-    message = error.status === 404 ? "404" : "Error";
+    const requestId = requestIdOf(error.data);
+    message = error.status === 404 ? "404" : "Something went wrong";
     details =
       error.status === 404
         ? "The requested page could not be found."
-        : error.statusText || details;
+        : requestId !== null
+          ? `Something went wrong. Reference: ${requestId}`
+          : error.statusText || details;
   } else if (import.meta.env.DEV && error && error instanceof Error) {
     details = error.message;
     stack = error.stack;

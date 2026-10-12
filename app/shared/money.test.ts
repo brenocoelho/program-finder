@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
+  formatBp,
   formatCents,
   parseDollarsToCents,
   parsePercentToBp,
@@ -33,7 +34,7 @@ describe("dollars to cents", () => {
   });
 
   it("text that is not a number is rejected", () => {
-    for (const text of ["abc", "1e5", "25 000", "$", "--5", "10k"]) {
+    for (const text of ["abc", "1e5", "25 000", "$", "--5"]) {
       expect(parseDollarsToCents(text)).toEqual(bad("not_a_number"));
     }
   });
@@ -61,6 +62,40 @@ describe("dollars to cents", () => {
         expect(parseDollarsToCents(String(dollars))).toEqual(ok(dollars * 100));
       }),
     );
+  });
+});
+
+describe("dollars to cents: k/m shorthand (D26)", () => {
+  it("10k is 10,000 dollars", () => {
+    expect(parseDollarsToCents("10k")).toEqual(ok(1_000_000));
+  });
+
+  it("250k and 1.2m are read as shorthand dollars", () => {
+    expect(parseDollarsToCents("250k")).toEqual(ok(25_000_000));
+    expect(parseDollarsToCents("1.2m")).toEqual(ok(120_000_000));
+  });
+
+  it("the suffix is case-insensitive", () => {
+    expect(parseDollarsToCents("250K")).toEqual(ok(25_000_000));
+    expect(parseDollarsToCents("1.2M")).toEqual(ok(120_000_000));
+  });
+
+  it("shorthand combines with $ and thousands commas", () => {
+    expect(parseDollarsToCents("$1,200k")).toEqual(ok(120_000_000));
+    expect(parseDollarsToCents("$250k")).toEqual(ok(25_000_000));
+  });
+
+  it("a shorthand value that can't resolve to a whole cent is rejected", () => {
+    expect(parseDollarsToCents("1.234567891m")).toEqual(bad("too_many_decimals"));
+  });
+
+  it("an unrecognized suffix is rejected, not read as a plain number", () => {
+    expect(parseDollarsToCents("250x")).toEqual(bad("not_a_number"));
+    expect(parseDollarsToCents("250kk")).toEqual(bad("not_a_number"));
+  });
+
+  it("a negative shorthand amount is reported as negative", () => {
+    expect(parseDollarsToCents("-5k")).toEqual(bad("negative"));
   });
 });
 
@@ -149,5 +184,20 @@ describe("cents to dollars text", () => {
         expect(parseDollarsToCents(text)).toEqual({ ok: true, value: dollars * 100 });
       }),
     );
+  });
+});
+
+describe("basis points to percent text", () => {
+  it("1140 is 11.40% and 1100 is 11.00%: always two decimals", () => {
+    expect(formatBp(1140)).toBe("11.40%");
+    expect(formatBp(1100)).toBe("11.00%");
+  });
+
+  it("0 is 0.00%", () => {
+    expect(formatBp(0)).toBe("0.00%");
+  });
+
+  it("a negative value keeps its sign", () => {
+    expect(formatBp(-50)).toBe("-0.50%");
   });
 });

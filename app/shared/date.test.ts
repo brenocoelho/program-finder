@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysBetween, parseUsDateToIso } from "./date";
+import { daysBetween, formatHumanDate, parseUsDateToIso, todayIso } from "./date";
 
 describe("US date to ISO date", () => {
   it("1/16/2026 is 2026-01-16", () => {
@@ -42,5 +42,25 @@ describe("days between two ISO dates", () => {
 
   it("is negative when the second date is earlier", () => {
     expect(daysBetween("2026-10-13", "2026-10-12")).toBe(-1);
+  });
+});
+
+describe("today as an ISO date", () => {
+  it("matches the YYYY-MM-DD shape", () => {
+    expect(todayIso()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe("a human-readable date", () => {
+  it("2026-01-16 reads as Jan 16, 2026", () => {
+    expect(formatHumanDate("2026-01-16")).toBe("Jan 16, 2026");
+  });
+
+  it("a single-digit day has no leading zero", () => {
+    expect(formatHumanDate("2026-02-08")).toBe("Feb 8, 2026");
+  });
+
+  it("December reads correctly", () => {
+    expect(formatHumanDate("2026-12-01")).toBe("Dec 1, 2026");
   });
 });
